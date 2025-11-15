@@ -1,0 +1,9 @@
+*.png
+*.csv
+*.gexf
+*.graphml
+*.html
+**/.DS_Store
+.DS_Store
+**/__pycache__
+Datasets/IMDB

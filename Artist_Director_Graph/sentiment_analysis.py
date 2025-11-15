@@ -45,6 +45,8 @@ def calculate_sentiment(text, word_scores):
         result['mean'] = statistics.mean(scores)
         result['median'] = statistics.median(scores)
         result['variance'] = statistics.variance(scores) if len(scores) > 1 else 0.0
+        result['min'] = min(scores)
+        result['max'] = max(scores)
 
         sorted_scores = sorted(scores)
         result['percentile_25'] = statistics.quantiles(sorted_scores, n=4)[0] if len(scores) >= 2 else sorted_scores[0]

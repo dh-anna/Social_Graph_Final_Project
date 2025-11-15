@@ -22,7 +22,7 @@ def cut_off_actors_whose_first_movie_was_before_1980(actors_set:Set, df_actors:p
             actors_after_1980.add(actor)
     return actors_after_1980
 
-def making_director_actor_graph(actors_after_1980:Set, actors_grouped,movie_directors_dict:Dict, name_lookup:Dict)->nx.DiGraph:
+def making_director_actor_graph(actors_after_1980:Set, actors_grouped, movie_directors_dict:Dict, name_lookup:Dict)->nx.DiGraph:
     actors_director_graph = nx.DiGraph()
     actors_director_graph.add_nodes_from(actors_after_1980)
     for actor, actor_movies in actors_grouped:
@@ -213,6 +213,7 @@ def calculate_cluster_avg_popularity(cluster_to_nodes, actor_popularity_map):
 
         if actors_with_popularity:
             avg_pop = np.mean(actors_with_popularity)
+            #ENI TODO: popular actors score / all actors
             cluster_avg_popularity[cluster_id] = avg_pop
         else:
             cluster_avg_popularity[cluster_id] = 0
@@ -411,7 +412,6 @@ def make_louvain_communities(filtered_graph:nx.DiGraph, actors_director_graph:nx
     embeddings = visualize_louvain_communities(filtered_graph, nodes, cluster_labels)
 
     # Show statistics
-    print(f"\nReduced from {actors_director_graph.number_of_nodes()} to {len(nodes)} nodes")
     print(f"Number of communities detected: {n_clusters}")
     print(f"\nCommunity sizes:")
     unique, counts = np.unique(cluster_labels, return_counts=True)
