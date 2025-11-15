@@ -123,11 +123,8 @@ def get_unique_movies_per_cluster(cluster_movies):
 
 
 def print_cluster_movies_summary(cluster_unique_movies, cluster_to_nodes, top_clusters=10):
-    """Print summary statistics for each cluster's movies."""
 
-    print(f"\n{'='*80}")
-    print("MOVIES BY CLUSTER - SUMMARY")
-    print(f"{'='*80}\n")
+    print("Movies by cluster - Summary")
 
     # Create summary data
     summary = []

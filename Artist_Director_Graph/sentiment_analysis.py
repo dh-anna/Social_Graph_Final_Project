@@ -1,19 +1,38 @@
 import statistics
-import nltk
+from nltk import word_tokenize, pos_tag, WordNetLemmatizer
 
+
+def get_wordnet_pos(tag):
+    if tag.startswith('J'):
+        return 'a'
+    elif tag.startswith('V'):
+        return 'v'
+    elif tag.startswith('N'):
+        return 'n'
+    elif tag.startswith('R'):
+        return 'r'
+    else:
+        return 'n'
+
+def duck():
+    print('Duck')
 
 # Calculate a sentiment analysis for a given text and a dictionary of word sentiment scores statistics
 def calculate_sentiment(text, word_scores):
     scores = []
-    tokens = nltk.word_tokenize(text)
+    lemmatizer = WordNetLemmatizer()
+
+    lemmatized_docs = []
+    tokens = word_tokenize(text.lower())
+    pos_tags = pos_tag(tokens)
+    lemmatized = [lemmatizer.lemmatize(word, pos=get_wordnet_pos(tag)) for word, tag in pos_tags]
+    lemmatized_docs.append(' '.join(lemmatized))
 
     # Collect all scores
     for token in tokens:
-        token_lower = token.lower()
-        if token_lower in word_scores:
-            score = word_scores[token_lower]
 
-
+        if token in word_scores:
+            score = word_scores[token]
             scores.append(score)
 
     # Initialize result dictionary
@@ -40,3 +59,4 @@ def calculate_sentiment(text, word_scores):
         result['percentile_75'] = None
 
     return result
+
