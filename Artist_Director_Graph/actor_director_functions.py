@@ -1,16 +1,28 @@
 import networkx as nx
 import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 from matplotlib import pyplot as plt
+from networkx import Graph
 from networkx.algorithms.community.quality import modularity
 from sklearn.manifold import TSNE
 
 import plotly.graph_objects as go
 import networkx as nx
 import plotly.io as pio
+from typing import Dict, List, Set, Tuple, Any, Hashable
 
 
-def making_director_actor_graph(actors_after_1980, actors_grouped,movie_directors_dict, name_lookup):
+def cut_off_actors_whose_first_movie_was_before_1980(actors_set:Set, df_actors:pd.DataFrame)->Set:
+    actors_after_1980 = set()
+    for actor in actors_set:
+        actor_films = df_actors[df_actors['Actor'] == actor]
+        first_film_year = actor_films['Year'].min()
+        if first_film_year >= 1980:
+            actors_after_1980.add(actor)
+    return actors_after_1980
+
+def making_director_actor_graph(actors_after_1980:Set, actors_grouped,movie_directors_dict:Dict, name_lookup:Dict)->nx.DiGraph:
     actors_director_graph = nx.DiGraph()
     actors_director_graph.add_nodes_from(actors_after_1980)
     for actor, actor_movies in actors_grouped:
@@ -37,7 +49,7 @@ def making_director_actor_graph(actors_after_1980, actors_grouped,movie_director
             actors_director_graph.add_edge(actor, director_name, weight=weight)
     return actors_director_graph
 
-def clusters_to_node(nodes, cluster_labels):
+def clusters_to_node(nodes:List[str], cluster_labels:np.ndarray)->Dict[int, List[str]]:
     cluster_to_nodes = {}
     for node, cluster in zip(nodes, cluster_labels):
         if cluster not in cluster_to_nodes:
@@ -62,7 +74,7 @@ def calculate_edge_trace(subgraph, pos ):
         edge_traces.append(edge_trace)
     return edge_traces
 
-def filter_graph(degree_threshold, actors_director_graph):
+def filter_graph(degree_threshold:int, actors_director_graph:nx.DiGraph)-> nx.Graph:
     degree_threshold = degree_threshold
     filtered_nodes = [n for n, d in actors_director_graph.degree() if d >= degree_threshold]
     filtered_graph = actors_director_graph.subgraph(filtered_nodes)
@@ -75,7 +87,7 @@ def calculate_partition(communities):
             partition[node] = cluster_id
     return partition
 
-def find_person_cluster(person_name, nodes, cluster_labels, cluster_to_nodes):
+def find_person_cluster(person_name:str, nodes:List[str], cluster_labels:Dict, cluster_to_nodes:Dict):
     if person_name in nodes:
         idx = nodes.index(person_name)
         cluster = cluster_labels[idx]
@@ -85,7 +97,7 @@ def find_person_cluster(person_name, nodes, cluster_labels, cluster_to_nodes):
     else:
         print(f"{person_name} not found (might have been filtered out)")
 
-def calculate_popular_directors_for_each_cluster(cluster_to_nodes,popular_directors):
+def calculate_popular_directors_for_each_cluster(cluster_to_nodes:Dict[int, List[str]],popular_directors:List[str])->Tuple[Dict[int, int], Dict[int, List[str]]]:
     cluster_popular_counts = {}
     cluster_popular_directors = {}
     for cluster_id in sorted(cluster_to_nodes.keys()):
@@ -98,7 +110,7 @@ def calculate_popular_directors_for_each_cluster(cluster_to_nodes,popular_direct
 
     return cluster_popular_counts, cluster_popular_directors
 
-def print_popular_directors_in_each_cluster(cluster_popular_counts, cluster_popular_directors, cluster_to_nodes):
+def print_popular_directors_in_each_cluster(cluster_popular_counts:Dict[int, int], cluster_popular_directors:Dict[int, List[str]], cluster_to_nodes:Dict[int, List[str]]):
     for cluster_id in sorted(cluster_popular_counts.keys()):
         print(
             f"Cluster {cluster_id}: {len(cluster_popular_directors[cluster_id])} popular directors out of {len(cluster_to_nodes[cluster_id])} total members ({len(cluster_popular_directors[cluster_id]) / len(cluster_to_nodes[cluster_id]) * 100:.1f}%)")
@@ -106,7 +118,7 @@ def print_popular_directors_in_each_cluster(cluster_popular_counts, cluster_popu
             print(f"  Examples: {', '.join(cluster_popular_directors[cluster_id][:5])}")
         print()
 
-def check_how_many_popular_directors_in_the_graph(director_popularity, nodes):
+def check_how_many_popular_directors_in_the_graph(director_popularity:pd.DataFrame, nodes:List[str]):
     popular_directors_list = list(director_popularity['director'])
     directors_in_graph = [d for d in popular_directors_list if d in nodes]
     directors_not_in_graph = [d for d in popular_directors_list if d not in nodes]
@@ -126,7 +138,7 @@ def check_how_many_popular_directors_in_the_graph(director_popularity, nodes):
             print(f"  - {d}")
         print()
 
-def list_actors_who_worked_with_popular_directors_in_cluster(cluster_to_nodes, cluster_popular_directors, filtered_graph):
+def list_actors_who_worked_with_popular_directors_in_cluster(cluster_to_nodes:Dict[int, List[str]], cluster_popular_directors:Dict[int, List[str]], filtered_graph:nx.DiGraph):
     for cluster_id in sorted(cluster_to_nodes.keys()):
         popular_directors_in_cluster = cluster_popular_directors[cluster_id]
 
@@ -176,12 +188,11 @@ def list_actors_in_cluster(cluster_to_nodes, actor_popularity_map, actors_after_
     actors_in_cluster.sort(key=lambda x: x['popularity'], reverse=True)
 
     # Display results
-    print(f"ACTORS IN CLUSTER {cluster_id}")
+    print(f"Actors in cluster {cluster_id}")
     print(f"Total members: {len(members)}")
     print(f"Actors identified: {len(actors_in_cluster)}")
-    print(f"Directors/Other: {len(members) - len(actors_in_cluster)}")
+    print(f"Directors: {len(members) - len(actors_in_cluster)}")
     print(f"\nTop {min(show_top_n, len(actors_in_cluster))} Actors by Popularity:")
-    print(f"{'=' * 80}\n")
 
     for i, actor in enumerate(actors_in_cluster[:show_top_n], 1):
         pop_str = f"{actor['popularity']:.2f}" if actor['popularity'] > 0 else "N/A"
@@ -208,7 +219,7 @@ def calculate_cluster_avg_popularity(cluster_to_nodes, actor_popularity_map):
 
     return cluster_avg_popularity
 
-def map_nodes_to_cluster(cluster_to_nodes):
+def map_nodes_to_cluster(cluster_to_nodes:Dict[int, List[str]])->Dict[str, int]:
     node_to_cluster = {}
     for cluster_id, members in cluster_to_nodes.items():
         for member in members:
@@ -216,7 +227,7 @@ def map_nodes_to_cluster(cluster_to_nodes):
 
     return node_to_cluster
 
-def calculate_edges_between_clusters(cluster_to_nodes, filtered_graph, node_to_cluster):
+def calculate_edges_between_clusters(cluster_to_nodes:Dict[int, List[str]], filtered_graph:nx.DiGraph, node_to_cluster:Dict[str, int])->Tuple[int, np.ndarray]:
     n_clusters = len(cluster_to_nodes)
     inter_cluster_edges = np.zeros((n_clusters, n_clusters), dtype=int)
 
@@ -231,7 +242,7 @@ def calculate_edges_between_clusters(cluster_to_nodes, filtered_graph, node_to_c
 
     return n_clusters, inter_cluster_edges
 
-def visualize_louvain_communities(filtered_graph, nodes, cluster_labels):
+def visualize_louvain_communities(filtered_graph:nx.DiGraph, nodes:np.ndarray, cluster_labels:np.ndarray)->List[str]:
     adj_matrix = nx.adjacency_matrix(filtered_graph, nodelist=nodes)
 
     # Use TSNE for dimensionality reduction (for easier visualization)
@@ -250,7 +261,7 @@ def visualize_louvain_communities(filtered_graph, nodes, cluster_labels):
     plt.show()
     return embeddings
 
-def calculate_member_centralities(cluster_to_nodes, degree_centrality):
+def calculate_member_centralities(cluster_to_nodes:Dict, degree_centrality:Dict)->Dict:
     cluster_centralities = {}
 
     for cluster_id, members in cluster_to_nodes.items():
@@ -267,7 +278,7 @@ def calculate_member_centralities(cluster_to_nodes, degree_centrality):
         }
     return cluster_centralities
 
-def get_popular_directors(df_movies_IMDB):
+def get_popular_directors(df_movies_IMDB:pd.DataFrame)->pd.DataFrame:
     df_expanded = df_movies_IMDB.copy()
     df_expanded['director'] = df_expanded['director'].str.split(', ')
     df_expanded = df_expanded.explode('director')
@@ -293,7 +304,7 @@ def get_popular_directors(df_movies_IMDB):
     director_stats_sorted = director_stats.sort_values('total_popularity', ascending=False)
     return director_stats_sorted
 
-def visualize_actor_director_graph_500_nodes(actors_director_graph):
+def visualize_actor_director_graph_500_nodes(actors_director_graph:nx.DiGraph):
 
     pio.renderers.default = 'notebook'
 
@@ -352,7 +363,7 @@ def visualize_actor_director_graph_500_nodes(actors_director_graph):
                     ))
     fig.show()
 
-def visualize_actor_director_graph(embeddings,cluster_labels, nodes ):
+def visualize_actor_director_graph(embeddings:List[str],cluster_labels:np.ndarray, nodes:np.ndarray ):
     # Create interactive plot with hover labels
     fig = go.Figure(data=[go.Scatter(
         x=embeddings[:, 0],
@@ -377,7 +388,7 @@ def visualize_actor_director_graph(embeddings,cluster_labels, nodes ):
     )
     fig.show()
 
-def make_louvain_communities(filtered_graph, actors_director_graph):
+def make_louvain_communities(filtered_graph:nx.DiGraph, actors_director_graph:nx.DiGraph)->Tuple[np.ndarray, List[str], np.ndarray]:
     # Convert to undirected graph for Louvain (Louvain works on undirected graphs)
     undirected_graph = filtered_graph.to_undirected().copy()
 
@@ -407,7 +418,7 @@ def make_louvain_communities(filtered_graph, actors_director_graph):
     for comm_id, count in sorted(zip(unique, counts), key=lambda x: x[1], reverse=True)[:10]:
         print(f"  Community {comm_id}: {count} members")
 
-    return cluster_labels,nodes, embeddings
+    return cluster_labels, nodes, embeddings
 
 def print_members_for_each_clusters(cluster_to_nodes):
     for cluster_id in sorted(cluster_to_nodes.keys()):
@@ -417,7 +428,7 @@ def print_members_for_each_clusters(cluster_to_nodes):
         if len(members) > 10:
             print(f"... and {len(members) - 10} more")
 
-def find_top_n_members_of_each_cluster(n, cluster_to_nodes,degree_centrality, filtered_graph ):
+def find_top_n_members_of_each_cluster(n:int, cluster_to_nodes:Dict,degree_centrality:Dict, filtered_graph:nx.DiGraph ):
     # Find top members by centrality in each cluster
     for cluster_id in sorted(cluster_to_nodes.keys()):
         members = cluster_to_nodes[cluster_id]
@@ -440,7 +451,7 @@ def find_cluster_with_highest_avg_centrality(sorted_by_average_centrality, degre
 
     return members_with_centrality
 
-def clusters_by_average_actors_popularity(df_celebrity, cluster_to_nodes):
+def clusters_by_average_actors_popularity(df_celebrity:pd.DataFrame, cluster_to_nodes:Dict[int, List[str]])->Dict[str, float]:
     # Filter for actors only
     df_actors_celebrity = df_celebrity[df_celebrity['known_for_department'] == 'Acting']
 
@@ -458,7 +469,7 @@ def clusters_by_average_actors_popularity(df_celebrity, cluster_to_nodes):
             print(f"Cluster {cluster_id}: {avg_pop:.2f}")
     return actor_popularity_map
 
-def calculate_between_cluster_connections(n_clusters, inter_cluster_edges, cluster_to_nodes):
+def calculate_between_cluster_connections(n_clusters:int, inter_cluster_edges:np.ndarray, cluster_to_nodes:Dict[int, List[str]]):
     print("Inter-cluster connections (edges between clusters):\n")
 
     # Create a summary
@@ -487,7 +498,7 @@ def calculate_between_cluster_connections(n_clusters, inter_cluster_edges, clust
 
         print(f"Cluster {cluster_id}: Internal={internal}, Outgoing={outgoing}, Incoming={incoming}")
 
-def clusters_by_incoming_edges(cluster_to_nodes, inter_cluster_edges, n_clusters):
+def clusters_by_incoming_edges(cluster_to_nodes:Dict[int, List[str]], inter_cluster_edges:np.ndarray, n_clusters:int):
     cluster_incoming = []
     for cluster_id in sorted(cluster_to_nodes.keys()):
         incoming = sum(inter_cluster_edges[i][cluster_id] for i in range(n_clusters) if i != cluster_id)

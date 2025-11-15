@@ -6,20 +6,15 @@ import nltk
 def calculate_sentiment(text, word_scores):
     scores = []
     tokens = nltk.word_tokenize(text)
-    total_tokens = len(tokens)
-    scored_tokens = 0
 
     # Collect all scores
     for token in tokens:
         token_lower = token.lower()
         if token_lower in word_scores:
-            scored_tokens += 1
             score = word_scores[token_lower]
 
 
             scores.append(score)
-
-    used_tokens = len(scores)
 
     # Initialize result dictionary
     result = {
