@@ -1,5 +1,7 @@
 import statistics
 from nltk import word_tokenize, pos_tag, WordNetLemmatizer
+from tqdm import tqdm
+from transformers import pipeline
 
 
 def get_wordnet_pos(tag):
@@ -14,14 +16,61 @@ def get_wordnet_pos(tag):
     else:
         return 'n'
 
-def duck():
-    print('Duck')
 
-# Calculate a sentiment analysis for a given text and a dictionary of word sentiment scores statistics
-def calculate_sentiment(text, word_scores):
-    scores = []
+sentiment_pipeline = pipeline("sentiment-analysis")  # -1 for CPU, 0 for GPU
+
+
+def calculate_sentiment(texts, batch_size=32):
+    """
+    Calculate sentiment analysis for a large array of texts using batching.
+
+    Args:
+        texts: List of text strings to analyze
+        batch_size: Number of texts to process in each batch (default: 32)
+
+    Returns:
+        List of dictionaries containing sentiment results for each text.
+        Each dict has 'label' (POSITIVE/NEGATIVE) and 'score' (confidence).
+    """
+    if not texts:
+        return []
+
+    # Filter out None or empty texts and keep track of original indices
+    valid_texts = []
+    valid_indices = []
+
+    for i, text in enumerate(texts):
+        if text and isinstance(text, str) and text.strip():
+            valid_texts.append(text.strip())
+            valid_indices.append(i)
+
+    if not valid_texts:
+        return [None] * len(texts)
+
+    # Process texts in batches
+    results = []
+    for i in tqdm(range(0, len(valid_texts), batch_size)):
+        batch = valid_texts[i:i + batch_size]
+        try:
+            # Pipeline handles batching internally
+            batch_results = sentiment_pipeline(batch, truncation=True, max_length=512)
+            results.extend(batch_results)
+        except Exception as e:
+            print(f"Error processing batch {i//batch_size + 1}: {e}")
+            # Add None for failed batch items
+            results.extend([None] * len(batch))
+
+    # Reconstruct full results list with None for invalid texts
+    full_results = [None] * len(texts)
+    for idx, result in zip(valid_indices, results):
+        full_results[idx] = result
+
+    return full_results
+
+
+def calculate_sentiment_labmit(text, word_scores):
     lemmatizer = WordNetLemmatizer()
-
+    labmit_scores = []
     lemmatized_docs = []
     tokens = word_tokenize(text.lower())
     pos_tags = pos_tag(tokens)
@@ -30,27 +79,22 @@ def calculate_sentiment(text, word_scores):
 
     # Collect all scores
     for token in tokens:
-
         if token in word_scores:
             score = word_scores[token]
-            scores.append(score)
+            labmit_scores.append(score)
 
     # Initialize result dictionary
     result = {
-        'scores': scores
+        'scores': labmit_scores
     }
 
     # Calculate statistics if we have scores
-    if scores:
-        result['mean'] = statistics.mean(scores)
-        result['median'] = statistics.median(scores)
-        result['variance'] = statistics.variance(scores) if len(scores) > 1 else 0.0
-        result['min'] = min(scores)
-        result['max'] = max(scores)
+    if labmit_scores:
+        result['labmit_mean'] = statistics.mean(labmit_scores)
+        result['labmit_median'] = statistics.median(labmit_scores)
 
-        sorted_scores = sorted(scores)
-        result['percentile_25'] = statistics.quantiles(sorted_scores, n=4)[0] if len(scores) >= 2 else sorted_scores[0]
-        result['percentile_75'] = statistics.quantiles(sorted_scores, n=4)[2] if len(scores) >= 2 else sorted_scores[0]
+        sorted_scores = sorted(labmit_scores)
+
     else:
         # No scores available
         result['mean'] = None

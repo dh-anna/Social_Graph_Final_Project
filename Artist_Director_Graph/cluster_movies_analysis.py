@@ -4,6 +4,7 @@ from collections import defaultdict
 
 
 
+
 def get_director_id_mapping(name_lookup):
     director_name_to_id = {name: nconst for nconst, name in name_lookup.items()}
     return director_name_to_id
