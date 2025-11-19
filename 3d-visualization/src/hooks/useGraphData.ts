@@ -8,6 +8,28 @@ interface UseGraphDataReturn {
   error: string | null
 }
 
+async function fetchAndDecompress(url: string): Promise<any> {
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch: ${response.status}`)
+  }
+
+  const contentType = response.headers.get('Content-Type') || ''
+
+  // If server says it's gzip, decompress it
+  if (contentType.includes('gzip') || contentType.includes('octet-stream')) {
+    const arrayBuffer = await response.arrayBuffer()
+    const decompressedStream = new Response(arrayBuffer).body!
+      .pipeThrough(new DecompressionStream('gzip'))
+    const decompressedResponse = new Response(decompressedStream)
+    return decompressedResponse.json()
+  }
+
+  // Otherwise treat as regular JSON
+  return response.json()
+}
+
 export function useGraphData(url: string): UseGraphDataReturn {
   const [graphData, setGraphData] = useState<GraphData | null>(null)
   const [maxDegree, setMaxDegree] = useState(100)
@@ -18,8 +40,7 @@ export function useGraphData(url: string): UseGraphDataReturn {
     setIsLoading(true)
     setError(null)
 
-    fetch(url)
-      .then(res => res.json())
+    fetchAndDecompress(url)
       .then((data) => {
         // Calculate node degrees from links
         const nodeDegrees: Record<string, number> = {}
