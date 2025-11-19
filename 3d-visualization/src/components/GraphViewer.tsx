@@ -36,33 +36,41 @@ export const GraphViewer: React.FC<GraphViewerProps> = ({
 
   // Apply separation force when enabled
   useEffect(() => {
-    if (!fgRef.current) return
+    // Wait for graph to be fully initialized
+    const timeoutId = setTimeout(() => {
+      if (!fgRef.current) return
 
-    const fg = fgRef.current
+      const fg = fgRef.current
 
-    if (separateByType) {
-      // Push actors and directors to opposite sides on X axis
-      fg.d3Force('x', forceX((node: any) => {
-        return node.type === 'actor' ? -200 : node.type === 'director' ? 200 : 0
-      }).strength(0.3))
+      try {
+        if (separateByType) {
+          // Push actors and directors to opposite sides on X axis
+          fg.d3Force('x', forceX((node: any) => {
+            return node.type === 'actor' ? -200 : node.type === 'director' ? 200 : 0
+          }).strength(0.3))
 
-      // Optional: also separate on Y axis for better visibility
-      fg.d3Force('y', forceY((node: any) => {
-        return node.type === 'actor' ? -100 : node.type === 'director' ? 100 : 0
-      }).strength(0.1))
-    } else {
-      // Remove separation forces
-      fg.d3Force('x', null)
-      fg.d3Force('y', null)
-    }
+          // Optional: also separate on Y axis for better visibility
+          fg.d3Force('y', forceY((node: any) => {
+            return node.type === 'actor' ? -100 : node.type === 'director' ? 100 : 0
+          }).strength(0.1))
+        } else {
+          // Use neutral forces instead of null to avoid breaking simulation
+          fg.d3Force('x', forceX(0).strength(0))
+          fg.d3Force('y', forceY(0).strength(0))
+        }
 
-    // Reheat the simulation to apply changes
-    fg.d3ReheatSimulation()
+        // Reheat the simulation to apply changes
+        fg.d3ReheatSimulation()
+      } catch (e) {
+        console.warn('Could not apply separation force:', e)
+      }
+    }, 100)
+
+    return () => clearTimeout(timeoutId)
   }, [separateByType])
 
   return (
     <ForceGraph3D
-      key={showLinkLabels ? 'with-labels' : 'without-labels'}
       ref={fgRef}
       graphData={graphData}
       width={width}
@@ -94,6 +102,7 @@ export const GraphViewer: React.FC<GraphViewerProps> = ({
         return sprite
       } : undefined}
       linkPositionUpdate={showLinkLabels ? (sprite: any, { start, end }: any) => {
+        if (!sprite || !sprite.position) return
         const middlePos = {
           x: start.x + (end.x - start.x) / 2,
           y: start.y + (end.y - start.y) / 2,
