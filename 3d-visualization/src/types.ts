@@ -3,6 +3,13 @@ export interface Node {
   name: string
   degree?: number
   color?: string
+  type?: 'actor' | 'director'
+}
+
+export type ColorMode = 'degree' | 'type'
+
+export interface GraphSettings {
+  separateByType: boolean
 }
 
 export interface Link {

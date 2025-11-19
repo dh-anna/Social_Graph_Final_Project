@@ -1,4 +1,5 @@
 import React from 'react'
+import { type ColorMode } from '../types'
 
 interface ControlPanelProps {
   minDegree: number
@@ -6,6 +7,10 @@ interface ControlPanelProps {
   onMinDegreeChange: (value: number) => void
   showLinkLabels: boolean
   onShowLinkLabelsChange: (value: boolean) => void
+  colorMode: ColorMode
+  onColorModeChange: (value: ColorMode) => void
+  separateByType: boolean
+  onSeparateByTypeChange: (value: boolean) => void
   nodeCount: number
   linkCount: number
 }
@@ -16,6 +21,10 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onMinDegreeChange,
   showLinkLabels,
   onShowLinkLabelsChange,
+  colorMode,
+  onColorModeChange,
+  separateByType,
+  onSeparateByTypeChange,
   nodeCount,
   linkCount
 }) => {
@@ -56,6 +65,40 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             style={{ marginRight: 8 }}
           />
           Show Link Weight Labels
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label style={{ display: 'block', marginBottom: 5, fontSize: 12 }}>
+          Color By:
+        </label>
+        <select
+          value={colorMode}
+          onChange={(e) => onColorModeChange(e.target.value as ColorMode)}
+          style={{
+            width: '100%',
+            padding: '4px 8px',
+            borderRadius: 4,
+            border: 'none',
+            background: '#333',
+            color: '#fff',
+            fontSize: 12
+          }}
+        >
+          <option value="degree">Degree (Viridis)</option>
+          <option value="type">Type (Actor/Director)</option>
+        </select>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label style={{ display: 'flex', alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={separateByType}
+            onChange={(e) => onSeparateByTypeChange(e.target.checked)}
+            style={{ marginRight: 8 }}
+          />
+          Separate Actors/Directors
         </label>
       </div>
 

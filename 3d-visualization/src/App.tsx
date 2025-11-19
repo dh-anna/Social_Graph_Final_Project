@@ -4,11 +4,14 @@ import { GraphViewer } from './components/GraphViewer'
 import { useGraphData } from './hooks/useGraphData'
 import { useWindowSize } from './hooks/useWindowSize'
 import { useFilteredGraph } from './hooks/useFilteredGraph'
+import { type ColorMode } from './types'
 import './App.css'
 
 function App() {
   const [minDegree, setMinDegree] = useState(0)
   const [showLinkLabels, setShowLinkLabels] = useState(false)
+  const [colorMode, setColorMode] = useState<ColorMode>('degree')
+  const [separateByType, setSeparateByType] = useState(false)
   const dimensions = useWindowSize()
 
   const { graphData, maxDegree, isLoading, error } = useGraphData(
@@ -29,6 +32,10 @@ function App() {
         onMinDegreeChange={setMinDegree}
         showLinkLabels={showLinkLabels}
         onShowLinkLabelsChange={setShowLinkLabels}
+        colorMode={colorMode}
+        onColorModeChange={setColorMode}
+        separateByType={separateByType}
+        onSeparateByTypeChange={setSeparateByType}
         nodeCount={filteredData.nodes.length}
         linkCount={filteredData.links.length}
       />
@@ -39,6 +46,8 @@ function App() {
         width={dimensions.width}
         height={dimensions.height}
         showLinkLabels={showLinkLabels}
+        colorMode={colorMode}
+        separateByType={separateByType}
       />
     </div>
   )
