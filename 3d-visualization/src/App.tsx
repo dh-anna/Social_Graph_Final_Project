@@ -13,7 +13,7 @@ function App() {
   const [graphData, setGraphData] = useState<GraphData | null>(null)
 
   useEffect(() => {
-    fetch('/graph-data.json')
+    fetch(import.meta.env.BASE_URL + 'graph-data.json')
       .then(res => res.json())
       .then(data => setGraphData(data))
       .catch(err => console.error('Failed to load graph:', err))
