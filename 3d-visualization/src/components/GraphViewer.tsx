@@ -1,6 +1,7 @@
 import React, {useEffect, useRef} from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
+// @ts-expect-error d3-force-3d don't have types
 import {forceX, forceY} from 'd3-force-3d'
 import {type ColorMode, type GraphData} from '../types'
 import {getViridisColor} from '../utils/colors'
