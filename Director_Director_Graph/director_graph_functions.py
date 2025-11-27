@@ -1252,4 +1252,60 @@ def visualize_prestige_evolution(max_len,mean_prestige, std_prestige, start_pres
     plt.savefig('memory_career_analysis.png', dpi=300, bbox_inches='tight')
     plt.show()
 
+def get_actors_to_popular_directors(actor_directors_dict, popular_directors):
+    actors_with_popular = set()
+    actors_without_popular = set()
+    for actor, directors_list in actor_directors_dict.items():
+        worked_with_popular = any(d['director'] in popular_directors for d in directors_list)
+
+        if worked_with_popular:
+            actors_with_popular.add(actor)
+        else:
+            actors_without_popular.add(actor)
+    return actors_with_popular, actors_without_popular
+
+def visualize_actor_popularity(popularity_without_popular, popularity_with_popular ):
+    # Visualize the comparison
+    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+
+    # Plot 1: Box plot comparison
+    ax1 = axes[0]
+    data_to_plot = [popularity_without_popular, popularity_with_popular]
+    bp = ax1.boxplot(data_to_plot, labels=['Never worked with\npopular directors', 'Worked with\npopular directors'],
+                     patch_artist=True)
+    bp['boxes'][0].set_facecolor('lightcoral')
+    bp['boxes'][1].set_facecolor('lightgreen')
+
+    ax1.set_ylabel('Actor Popularity Score', fontsize=12)
+    ax1.set_title('Actor Popularity Distribution', fontsize=14, fontweight='bold')
+    ax1.grid(axis='y', alpha=0.3)
+
+    # Add mean markers
+    means = [np.mean(popularity_without_popular), np.mean(popularity_with_popular)]
+    ax1.plot([1, 2], means, 'D', color='red', markersize=8, label='Mean', zorder=3)
+    ax1.legend()
+
+    # Plot 2: Histogram comparison
+    ax2 = axes[1]
+    bins = np.linspace(0, max(max(popularity_with_popular), max(popularity_without_popular)), 30)
+    ax2.hist(popularity_without_popular, bins=bins, alpha=0.5, label='Never worked with popular directors',
+             color='coral', edgecolor='black')
+    ax2.hist(popularity_with_popular, bins=bins, alpha=0.5, label='Worked with popular directors',
+             color='green', edgecolor='black')
+
+    ax2.axvline(np.mean(popularity_without_popular), color='red', linestyle='--', linewidth=2,
+                label=f'Mean (no popular): {np.mean(popularity_without_popular):.1f}')
+    ax2.axvline(np.mean(popularity_with_popular), color='darkgreen', linestyle='--', linewidth=2,
+                label=f'Mean (with popular): {np.mean(popularity_with_popular):.1f}')
+
+    ax2.set_xlabel('Actor Popularity Score', fontsize=12)
+    ax2.set_ylabel('Number of Actors', fontsize=12)
+    ax2.set_title('Actor Popularity Distribution (Histogram)', fontsize=14, fontweight='bold')
+    ax2.legend()
+    ax2.grid(axis='y', alpha=0.3)
+
+    plt.tight_layout()
+    plt.savefig('actor_quality_popular_directors.png', dpi=300, bbox_inches='tight')
+    plt.show()
+
 
