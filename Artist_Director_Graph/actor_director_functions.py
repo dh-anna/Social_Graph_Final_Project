@@ -1,16 +1,15 @@
-import networkx as nx
+
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
 from matplotlib import pyplot as plt
-from networkx import Graph
 from networkx.algorithms.community.quality import modularity
 from sklearn.manifold import TSNE
 
 import plotly.graph_objects as go
 import networkx as nx
 import plotly.io as pio
-from typing import Dict, List, Set, Tuple, Any, Hashable
+from typing import Dict, List, Set, Tuple
+import seaborn as sns
 
 
 def cut_off_actors_whose_first_movie_was_before_1980(actors_set:Set, df_actors:pd.DataFrame)->Set:
@@ -57,28 +56,6 @@ def clusters_to_node(nodes:List[str], cluster_labels:np.ndarray)->Dict[int, List
         cluster_to_nodes[cluster].append(node)
     return cluster_to_nodes
 
-def calculate_edge_trace(subgraph, pos ):
-    edge_traces = []
-    for edge in subgraph.edges(data=True):
-        x0, y0 = pos[edge[0]]
-        x1, y1 = pos[edge[1]]
-        weight = edge[2]['weight']
-
-        edge_trace = go.Scatter(
-            x=[x0, x1, None],
-            y=[y0, y1, None],
-            mode='lines',
-            line=dict(width=min(weight * 0.5, 5), color='rgba(125,125,125,0.5)'),
-            hoverinfo='none'
-        )
-        edge_traces.append(edge_trace)
-    return edge_traces
-
-def filter_graph(degree_threshold:int, actors_director_graph:nx.DiGraph)-> nx.Graph:
-    degree_threshold = degree_threshold
-    filtered_nodes = [n for n, d in actors_director_graph.degree() if d >= degree_threshold]
-    filtered_graph = actors_director_graph.subgraph(filtered_nodes)
-    return filtered_graph
 
 def calculate_partition(communities):
     partition = {}
@@ -111,12 +88,15 @@ def calculate_popular_directors_for_each_cluster(cluster_to_nodes:Dict[int, List
     return cluster_popular_counts, cluster_popular_directors
 
 def print_popular_directors_in_each_cluster(cluster_popular_counts:Dict[int, int], cluster_popular_directors:Dict[int, List[str]], cluster_to_nodes:Dict[int, List[str]]):
+    cluster_popular_directors_percentages = {}
     for cluster_id in sorted(cluster_popular_counts.keys()):
+        cluster_popular_directors_percentages[cluster_id] = len(cluster_popular_directors[cluster_id]) / len(cluster_to_nodes[cluster_id]) * 100
         print(
             f"Cluster {cluster_id}: {len(cluster_popular_directors[cluster_id])} popular directors out of {len(cluster_to_nodes[cluster_id])} total members ({len(cluster_popular_directors[cluster_id]) / len(cluster_to_nodes[cluster_id]) * 100:.1f}%)")
         if cluster_popular_directors[cluster_id]:
             print(f"  Examples: {', '.join(cluster_popular_directors[cluster_id][:5])}")
         print()
+    return cluster_popular_directors_percentages
 
 def check_how_many_popular_directors_in_the_graph(director_popularity:pd.DataFrame, nodes:List[str]):
     popular_directors_list = list(director_popularity['director'])
@@ -143,9 +123,7 @@ def list_actors_who_worked_with_popular_directors_in_cluster(cluster_to_nodes:Di
         popular_directors_in_cluster = cluster_popular_directors[cluster_id]
 
         if popular_directors_in_cluster:
-            print(f"\n{'=' * 80}")
-            print(f"CLUSTER {cluster_id} - {len(popular_directors_in_cluster)} popular director(s)")
-            print(f"{'=' * 80}")
+            print(f"Cluster {cluster_id} - {len(popular_directors_in_cluster)} popular director(s)")
 
             for director in popular_directors_in_cluster:
                 # Find actors who worked with this director (predecessors in the directed graph)
@@ -389,12 +367,28 @@ def visualize_actor_director_graph(embeddings:List[str],cluster_labels:np.ndarra
     )
     fig.show()
 
+def show_clusters_centrality_vs_popularity_table(degree_centrality_list1, popular_percentage_list2, average_popularity_list3, x):
+    print(f"{'Degree centrality':<25} {'Popular clusters':<20} {'Average popularity clusters':<25}")
+    print("-" * 80)
+
+    for i in range(x):
+        item1 = degree_centrality_list1[i] if i < len(degree_centrality_list1) else ""
+        item2 = popular_percentage_list2[i] if i < len(popular_percentage_list2) else ""
+        item3 = average_popularity_list3[i] if i < len(average_popularity_list3) else ""
+
+        mark1 = "*" if item1 in popular_percentage_list2[:x] else ""
+        mark2 = "*" if item2 in degree_centrality_list1[:x] else ""
+        mark3 = "*" if item3 in degree_centrality_list1[:x] else ""
+
+        print(f"Cluster {item1}{mark1:<20} Cluster {item2}{mark2:<10} Cluster {item3}{mark3:<20}")
+
 def make_louvain_communities(filtered_graph:nx.DiGraph, actors_director_graph:nx.DiGraph)->Tuple[np.ndarray, List[str], np.ndarray]:
     # Convert to undirected graph for Louvain (Louvain works on undirected graphs)
     undirected_graph = filtered_graph.to_undirected().copy()
 
     # Apply Louvain community detection
     communities = nx.community.louvain_communities(undirected_graph, seed=42)
+    communities = sorted(communities, key=lambda c: len(c), reverse=True)
     # Convert communities (list of sets) to node to cluster mapping
     partition = calculate_partition(communities)
 
@@ -467,7 +461,7 @@ def clusters_by_average_actors_popularity(df_celebrity:pd.DataFrame, cluster_to_
     for cluster_id, avg_pop in sorted_clusters:
         if avg_pop > 0:
             print(f"Cluster {cluster_id}: {avg_pop:.2f}")
-    return actor_popularity_map
+    return actor_popularity_map, cluster_avg_popularity
 
 def calculate_between_cluster_connections(n_clusters:int, inter_cluster_edges:np.ndarray, cluster_to_nodes:Dict[int, List[str]]):
     print("Inter-cluster connections (edges between clusters):\n")
@@ -511,3 +505,82 @@ def clusters_by_incoming_edges(cluster_to_nodes:Dict[int, List[str]], inter_clus
     for rank, (cluster_id, incoming) in enumerate(cluster_incoming, 1):
         num_members = len(cluster_to_nodes[cluster_id])
         print(f"{rank}. Cluster {cluster_id}: {incoming} incoming edges ({num_members} members)")
+
+def calculate_sentiment_scores_of_genres_in_clusters_results(sentiment_scores_of_genres_in_clusters):
+    sentiment_scores_of_genres_in_clusters_results = {}
+
+    for cluster_id, genre_scores in sentiment_scores_of_genres_in_clusters.items():
+        if not genre_scores:  # skip empty dictionaries
+            sentiment_scores_of_genres_in_clusters_results[cluster_id] = {
+                "lowest_genre": None,
+                "lowest_score": None,
+                "highest_genre": None,
+                "highest_score": None
+            }
+            continue
+
+        # Find min and max by value
+        lowest_genre = min(genre_scores, key=genre_scores.get)
+        highest_genre = max(genre_scores, key=genre_scores.get)
+
+        sentiment_scores_of_genres_in_clusters_results[cluster_id] = {
+            "lowest_genre": lowest_genre,
+            "lowest_score": genre_scores[lowest_genre],
+            "highest_genre": highest_genre,
+            "highest_score": genre_scores[highest_genre]
+        }
+
+    return sentiment_scores_of_genres_in_clusters_results
+
+
+def visualize_clusters_genres_sentiments(sentiment_scores_of_genres_in_clusters_results):
+    rows = []
+    for cluster, values in sentiment_scores_of_genres_in_clusters_results.items():
+        rows.append({
+            'Cluster': cluster,
+            'Genre': values['lowest_genre'],
+            'Score': values['lowest_score'],
+            'Type': 'Lowest'
+        })
+        rows.append({
+            'Cluster': cluster,
+            'Genre': values['highest_genre'],
+            'Score': values['highest_score'],
+            'Type': 'Highest'
+        })
+
+    df = pd.DataFrame(rows)
+
+    df['Cluster_num'] = df['Cluster']
+    df = df.sort_values('Cluster_num')
+    df['Cluster'] = df['Cluster'].apply(lambda x: f'Cluster {x}')
+
+
+    heatmap_data = df.pivot(index='Cluster', columns='Type', values='Score')
+    heatmap_data = heatmap_data[['Lowest', 'Highest']]  # Order columns
+
+
+    genre_labels = df.pivot(index='Cluster', columns='Type', values='Genre')
+    genre_labels = genre_labels[['Lowest', 'Highest']]
+
+    annot_labels = heatmap_data.copy().astype(str)
+    for idx in annot_labels.index:
+        for col in annot_labels.columns:
+            score = heatmap_data.loc[idx, col]
+            genre = genre_labels.loc[idx, col]
+            if pd.isna(score):
+                annot_labels.loc[idx, col] = f'{genre}'
+            else:
+                annot_labels.loc[idx, col] = f'{score:.2f}\n{genre}'
+
+    fig, ax = plt.subplots(figsize=(8, 14))
+    sns.heatmap(heatmap_data, annot=annot_labels, fmt='', cmap='RdYlGn',
+                center=df['Score'].mean(), ax=ax, annot_kws={'fontsize': 9},
+                linewidths=0.5, linecolor='white')
+
+    plt.title('Sentiment Scores by Cluster: Lowest vs Highest Genres', fontsize=14, pad=15)
+    plt.xlabel('')
+    plt.ylabel('')
+    plt.tight_layout()
+    plt.savefig('sentiment_scores_by_clusters_by_genre.png', dpi=300, bbox_inches='tight')
+    plt.show()

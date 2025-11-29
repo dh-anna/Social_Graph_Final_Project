@@ -247,6 +247,7 @@ class ActorDirectorAnalyzer:
 
         return interpretation
 
+
     def print_detailed_report(self, results: List[ActorCareerAnalysis], top_n: int = 10):
         cluster_id = getattr(self, 'current_cluster_id', 'N/A')
         report = self.generate_report(results, top_n)
@@ -290,7 +291,7 @@ class ActorDirectorAnalyzer:
         print(f"  Std Dev: {summary['std_career_position'] * 100:.1f}%")
         print(f"  (0% = career start, 100% = career end)")
 
-        print(f"\nINTERPRETATION:")
+        print(f"\nOur interpretation:")
         print(f"{report['interpretation']}")
 
         # Additional insights
@@ -432,3 +433,5 @@ class ActorDirectorAnalyzer:
         }
 
         return report
+
+

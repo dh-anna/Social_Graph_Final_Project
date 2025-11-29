@@ -97,6 +97,7 @@ def calculate_sentiment_labmit(text, word_scores):
 
     else:
         # No scores available
+        result['labmit_mean'] = None
         result['mean'] = None
         result['median'] = None
         result['variance'] = None

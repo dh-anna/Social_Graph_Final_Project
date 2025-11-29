@@ -1,12 +1,13 @@
 import random
 from collections import Counter
-
 import numpy as np
 import pandas as pd
 import networkx as nx
+from pygments.lexers import go
 from scipy import stats
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.graph_objects as go
 
 def build_actor_director_dict(df_actors, movie_directors_dict, name_lookup):
     actor_directors_dict = {}
@@ -60,50 +61,9 @@ def make_director_graph(all_directors, actor_directors_dict ):
 
     return director_graph
 
-def calculate_popular_directors_in_degree_centrality(degree_centrality, popular_directors):
-    sorted_nodes = sorted(degree_centrality.items(), key=lambda x: x[1], reverse=True)
-    node_to_rank = {node: rank + 1 for rank, (node, _) in enumerate(sorted_nodes)}
-
-    # Find the rank of each popular director
-    popular_director_ranks = []
-    directors_not_in_graph = []
-
-    for director in popular_directors:
-        if director in node_to_rank:
-            rank = node_to_rank[director]
-            centrality_value = degree_centrality[director]
-            popular_director_ranks.append((director, rank, centrality_value))
-        else:
-            directors_not_in_graph.append(director)
-
-    # Sort by rank
-    popular_director_ranks.sort(key=lambda x: x[1])
-
-    # The minimum X is the maximum rank among all popular directors
-    if popular_director_ranks:
-        min_X = max(rank for _, rank, _ in popular_director_ranks)
-        worst_ranked_director = [item for item in popular_director_ranks if item[1] == min_X][0]
-    else:
-        min_X = None
-        worst_ranked_director = None
-
-    results = {
-        'min_X': min_X,
-        'worst_ranked_director': worst_ranked_director,
-        'popular_director_ranks': popular_director_ranks,
-        'directors_not_in_graph': directors_not_in_graph,
-        'sorted_nodes': sorted_nodes
-    }
-    return results
-
-
 
 def correlate_with_director_popularity(G, director_popularity_df):
-    try:
-        eigenvector_cent = nx.eigenvector_centrality(G, max_iter=1000, weight='weight')
-    except nx.PowerIterationFailedConvergence:
-        print("Warning: Eigenvector centrality failed to converge, using numpy version")
-        eigenvector_cent = nx.eigenvector_centrality_numpy(G, weight='weight')
+    eigenvector_cent = nx.eigenvector_centrality(G, max_iter=1000, weight='weight')
 
     pagerank_cent = nx.pagerank(G, weight='weight')
     in_degree_cent = dict(G.in_degree(weight='weight'))
@@ -144,20 +104,12 @@ def correlate_with_director_popularity(G, director_popularity_df):
             # Remove any NaN values
             valid_data = merged_df[[net_measure, pop_measure]].dropna()
 
-            # Calculate correlations
-            pearson_r, pearson_p = stats.pearsonr(
-                valid_data[net_measure],
-                valid_data[pop_measure]
-            )
-
             spearman_r, spearman_p = stats.spearmanr(
                 valid_data[net_measure],
                 valid_data[pop_measure]
             )
 
             results[net_measure][pop_measure] = {
-                'pearson_r': pearson_r,
-                'pearson_p': pearson_p,
                 'spearman_r': spearman_r,
                 'spearman_p': spearman_p,
                 'n_samples': len(valid_data)
@@ -348,7 +300,6 @@ def print_correlation_summary(results):
 
         for pop_measure, corr_stats in popularity_results.items():
             print(f"  vs {pop_measure.replace('_', ' ')}:")
-            print(f"    Pearson r  = {corr_stats['pearson_r']:>7.3f} (p = {corr_stats['pearson_p']:.4f})")
             print(f"    Spearman r = {corr_stats['spearman_r']:>7.3f} (p = {corr_stats['spearman_p']:.4f})")
 
             # Interpretation
@@ -426,12 +377,6 @@ def correlate_with_prestige_measures(G, external_prestige_data):
         if len(valid_data) < 3:
             continue
 
-        # Pearson correlation (linear relationship)
-        pearson_r, pearson_p = stats.pearsonr(
-            valid_data['eigenvector_centrality'],
-            valid_data[prestige_measure]
-        )
-
         # Spearman correlation (monotonic relationship, robust to outliers)
         spearman_r, spearman_p = stats.spearmanr(
             valid_data['eigenvector_centrality'],
@@ -439,18 +384,9 @@ def correlate_with_prestige_measures(G, external_prestige_data):
         )
 
         # Kendall's tau (rank correlation)
-        kendall_tau, kendall_p = stats.kendalltau(
-            valid_data['eigenvector_centrality'],
-            valid_data[prestige_measure]
-        )
-
         results[prestige_measure] = {
-            'pearson_r': pearson_r,
-            'pearson_p': pearson_p,
             'spearman_r': spearman_r,
             'spearman_p': spearman_p,
-            'kendall_tau': kendall_tau,
-            'kendall_p': kendall_p,
             'n_samples': len(valid_data)
         }
 
@@ -571,21 +507,15 @@ def validate_ranking_consistency(G, external_rankings):
     return rank_corr, top_k_overlaps
 
 
-# Main analysis
 def analyze_prestige_correlation(G, external_prestige_df=None):
-    # 1. Calculate correlations
     print("Correlation analysis")
 
     correlations, merged_df = correlate_with_prestige_measures(G, external_prestige_df)
 
-    # Display results
     for measure, corr_stats in correlations.items():
         print(f"\n{measure}:")
-        print(f"  Pearson r = {corr_stats['pearson_r']:.3f} (p = {corr_stats['pearson_p']:.4f})")
         print(f"  Spearman r = {corr_stats['spearman_r']:.3f} (p = {corr_stats['spearman_p']:.4f})")
-        print(f"  Kendall tau = {corr_stats['kendall_tau']:.3f} (p = {corr_stats['kendall_p']:.4f})")
 
-        # Interpretation
         if abs(corr_stats['spearman_r']) > 0.7:
             strength = "strong"
         elif abs(corr_stats['spearman_r']) > 0.4:
@@ -598,17 +528,10 @@ def analyze_prestige_correlation(G, external_prestige_df=None):
         else:
             print(f"  → {strength} but not significant")
 
-    # 2. Visualize correlations
+
     prestige_cols = [col for col in external_prestige_df.columns
                     if col != 'director']
     visualize_correlations(merged_df, prestige_cols[:4])
-
-    # 3. Create correlation matrix
-    corr_matrix = create_correlation_matrix(merged_df)
-
-    # 4. Validate ranking consistency
-    if 'external_rank' in external_prestige_df.columns:
-        rank_corr, top_k = validate_ranking_consistency(G, external_prestige_df)
 
     return correlations, merged_df
 
@@ -632,7 +555,6 @@ def calculate_group_transition_probability(director_popularity, director_graph, 
     top_10_directors = director_popularity.nlargest(top_n, 'total_popularity')['director'].tolist()
     top_10_in_graph = [d for d in top_10_directors if director_graph.has_node(d)]
 
-    # Create popularity groups
     director_popularity_sorted = director_popularity.sort_values('total_popularity', ascending=False)
     n_directors = len(director_popularity_sorted)
     director_popularity_sorted['group'] = pd.cut(
@@ -641,7 +563,6 @@ def calculate_group_transition_probability(director_popularity, director_graph, 
         labels=['Top 100', 'Top 500', 'Top 1000', 'Top 5000', 'Rest']
     )
 
-    # Calculate avg probability of transitioning to top 10 for each group
     group_results = []
 
     for group in ['Top 100', 'Top 500', 'Top 1000', 'Top 5000', 'Rest']:
@@ -838,10 +759,9 @@ def top_20_most_visited_directors_and_total_popularity(visit_counts, director_po
 
 def visualize_top_20_most_visited_directors_and_total_popularity(merged, spearman_r, visit_counts, director_popularity):
     # Visualize
-    fig, axes = plt.subplots(1, 2, figsize=(14, 5))
+    fig, ax1 = plt.subplots(figsize=(10, 6))
 
     # Plot 1: Scatter plot
-    ax1 = axes[0]
     ax1.scatter(merged['visit_count'], merged['total_popularity'] / 1e6, alpha=0.3, s=20)
     ax1.set_xlabel('Random Walk Visit Count', fontsize=12)
     ax1.set_ylabel('Actual Popularity (millions)', fontsize=12)
@@ -854,34 +774,16 @@ def visualize_top_20_most_visited_directors_and_total_popularity(merged, spearma
     x_line = np.linspace(merged['visit_count'].min(), merged['visit_count'].max(), 100)
     ax1.plot(x_line, p(x_line), 'r-', linewidth=2)
 
-    # Plot 2: Compare top 20 directors
-    ax2 = axes[1]
+
     top_20_rw = visit_counts.most_common(20)
     top_20_pop = director_popularity.nlargest(20, 'total_popularity')['director'].tolist()
 
     # How many top-20 from random walk are in actual top-20?
     overlap = len(set([d for d, _ in top_20_rw]) & set(top_20_pop))
 
-    rw_ranks = {d: i + 1 for i, (d, _) in enumerate(visit_counts.most_common())}
-    pop_ranks = {d: i + 1 for i, d in
-                 enumerate(director_popularity.sort_values('total_popularity', ascending=False)['director'])}
 
-    comparison_data = []
-    for d in top_20_pop[:10]:
-        if d in rw_ranks:
-            comparison_data.append({'director': d, 'rw_rank': rw_ranks[d], 'pop_rank': pop_ranks[d]})
 
-    comp_df = pd.DataFrame(comparison_data)
-    x = range(len(comp_df))
-    width = 0.35
-    ax2.bar([i - width / 2 for i in x], comp_df['pop_rank'], width, label='Popularity Rank', color='blue', alpha=0.7)
-    ax2.bar([i + width / 2 for i in x], comp_df['rw_rank'], width, label='Random Walk Rank', color='orange', alpha=0.7)
-    ax2.set_xticks(x)
-    ax2.set_xticklabels([d[:15] for d in comp_df['director']], rotation=45, ha='right')
-    ax2.set_ylabel('Rank (lower = better)')
-    ax2.set_title(f'Top 10 Popular Directors: Popularity vs Random Walk Rank')
-    ax2.legend()
-    ax2.invert_yaxis()
+
 
     plt.tight_layout()
     plt.savefig('random_walk_vs_popularity.png', dpi=300, bbox_inches='tight')
@@ -945,11 +847,7 @@ def analyze_distance_to_top_directors(G, director_popularity_df, top_n=10):
     top_directors_in_graph = [d for d in top_directors if G.has_node(d)]
     print(f"\nTop directors found in graph: {len(top_directors_in_graph)}/{top_n}")
 
-    if len(top_directors_in_graph) == 0:
-        print("ERROR: No top directors found in the graph!")
-        return None
 
-    print("\nCalculating shortest path distances...")
     print("(Measures: how many career steps to reach a top director)")
 
     distances = {}
@@ -996,14 +894,9 @@ def analyze_distance_to_top_directors(G, director_popularity_df, top_n=10):
         analysis_df['total_popularity']
     )
 
-    pearson_r, pearson_p = stats.pearsonr(
-        analysis_df['distance_to_top10'],
-        analysis_df['total_popularity']
-    )
 
     print(f"\nSample size: {len(analysis_df)} directors (excluding top 10)")
     print(f"\nDistance to nearest top 10 director vs Total Popularity:")
-    print(f"  Pearson r  = {pearson_r:>7.4f} (p = {pearson_p:.4e})")
     print(f"  Spearman r = {spearman_r:>7.4f} (p = {spearman_p:.4e})")
 
     if spearman_p < 0.001:
@@ -1029,11 +922,9 @@ def analyze_distance_to_top_directors(G, director_popularity_df, top_n=10):
         print("   Directors farther from top 10 tend to be more popular")
 
     # Group analysis by distance
-    print(f"\n{'=' * 70}")
-    print("Popularity by directed distance")
-    print(f"{'=' * 70}")
+    print("\nHere we analyze the number of directors whose distance are 1,2,... from the top 10. We calculate their mean, median popularity.")
 
-    print(f"\n{'Distance':<12} {'Count':<10} {'Mean Popularity':<20} {'Median Popularity':<20}")
+    print(f"{'Distance':<12} {'Count':<10} {'Mean Popularity':<20} {'Median Popularity':<20}")
     print("-" * 62)
 
     for dist in sorted(analysis_df['distance_to_top10'].unique()):
@@ -1197,7 +1088,7 @@ def memory_random_walk_eq1(G, start_director, prestige_min, prestige_max, n_step
 
     return path
 
-def simulating_careers(director_graph, prestige_min, prestige_max,prestige_bins, P_pi_given_m, P_pi,director_prestige=None,  n_steps=10, n_tau=5, transition_probs=None, ):
+def simulating_careers(director_graph,director_popularity, prestige_min, prestige_max,prestige_bins, P_pi_given_m, P_pi,director_prestige=None,  n_steps=10, n_tau=5, transition_probs=None, ):
     starting_directors = [d for d in director_graph.nodes() if director_graph.out_degree(d) > 0]
     memory_visits = Counter()
     memory_careers = []
@@ -1210,47 +1101,11 @@ def simulating_careers(director_graph, prestige_min, prestige_max,prestige_bins,
         for d in path:
             memory_visits[d] += 1
         memory_careers.append(path)
+    visit_df = pd.DataFrame(list(memory_visits.items()), columns=['director', 'visit_count']).sort_values('visit_count', ascending=False)
+    visit_df = visit_df.merge(director_popularity[['director', 'popularity_rank']], on='director', how='left')
 
-    return memory_visits, memory_careers
+    return memory_visits, memory_careers, visit_df
 
-def get_prestige_trajectory(career, director_prestige, prestige_min, prestige_max):
-    return [normalize_prestige(director_prestige.get(d, prestige_min), prestige_min, prestige_max) for d in career]
-
-def pad_trajectory(traj, max_len):
-    if len(traj) < max_len:
-        return traj + [traj[-1]] * (max_len - len(traj))
-    return traj[:max_len]
-
-def visualize_prestige_evolution(max_len,mean_prestige, std_prestige, start_prestiges, memory_trajectories ):
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-
-    ax1 = axes[0]
-    steps = range(max_len)
-    ax1.plot(steps, mean_prestige, 'b-', linewidth=2, label='Mean')
-    ax1.fill_between(steps, mean_prestige - std_prestige, mean_prestige + std_prestige,
-                     alpha=0.3, color='blue', label='±1 std')
-    ax1.set_xlabel('Career Step', fontsize=12)
-    ax1.set_ylabel('Normalized Prestige', fontsize=12)
-    ax1.set_title('Prestige Evolution (Memory Model)', fontsize=12)
-    ax1.legend()
-    ax1.grid(alpha=0.3)
-
-    # Plot 2: Start vs End prestige scatter
-    ax2 = axes[1]
-    ax2.scatter(start_prestiges[:1000], [t[-1] for t in memory_trajectories[:1000] if len(t) > 1][:1000],
-                alpha=0.3, s=20)
-    ax2.plot([0, 1], [0, 1], 'r--', linewidth=2, label='No change')
-    ax2.set_xlabel('Starting Prestige', fontsize=12)
-    ax2.set_ylabel('Ending Prestige', fontsize=12)
-    ax2.set_title('Career Start vs End (Memory Effect)', fontsize=12)
-    ax2.legend()
-    ax2.set_xlim(0, 1)
-    ax2.set_ylim(0, 1)
-    ax2.grid(alpha=0.3)
-
-    plt.tight_layout()
-    plt.savefig('memory_career_analysis.png', dpi=300, bbox_inches='tight')
-    plt.show()
 
 def get_actors_to_popular_directors(actor_directors_dict, popular_directors):
     actors_with_popular = set()
@@ -1264,48 +1119,282 @@ def get_actors_to_popular_directors(actor_directors_dict, popular_directors):
             actors_without_popular.add(actor)
     return actors_with_popular, actors_without_popular
 
-def visualize_actor_popularity(popularity_without_popular, popularity_with_popular ):
-    # Visualize the comparison
+
+
+def get_career_classification(directors_list, popular_directors, n_films=3):
+    if len(directors_list) == 0:
+        return None, None
+
+    first_films = directors_list[:min(n_films, len(directors_list))]
+    last_films = directors_list[-min(n_films, len(directors_list)):]
+
+    # Count popular directors in first and last films
+    first_popular = sum(1 for d in first_films if d['director'] in popular_directors)
+    last_popular = sum(1 for d in last_films if d['director'] in popular_directors)
+
+    # Classify based on majority
+    start_class = "Popular" if first_popular > len(first_films) / 2 else "Non-Popular"
+    end_class = "Popular" if last_popular > len(last_films) / 2 else "Non-Popular"
+
+    return start_class, end_class
+
+
+def calculate_actor_transitions(actor_directors_dict, popular_directors, transitions, actor_min_films):
+    for actor, directors_list in actor_directors_dict.items():
+        if len(directors_list) >= actor_min_films:
+            start_class, end_class = get_career_classification(directors_list, popular_directors, n_films=3)
+
+            if start_class and end_class:
+                transitions[(start_class, end_class)] += 1
+
+    print(f"Actor Career Transitions (actors with >= {actor_min_films} films):")
+
+    total_actors = sum(transitions.values())
+    for (start, end), count in sorted(transitions.items()):
+        percentage = (count / total_actors * 100) if total_actors > 0 else 0
+        print(f"{start:15s} → {end:15s}: {count:5d} actors ({percentage:5.1f}%)")
+    print(f"\nTotal actors analyzed: {total_actors}")
+    return total_actors
+
+
+
+
+def visualize_actor_transitions(transitions, total_actors, actor_min_films):
+    # Calculate actor counts for each node
+    career_start_nonpopular = transitions[('Non-Popular', 'Non-Popular')] + transitions[('Non-Popular', 'Popular')]
+    career_start_popular = transitions[('Popular', 'Non-Popular')] + transitions[('Popular', 'Popular')]
+    career_end_nonpopular = transitions[('Non-Popular', 'Non-Popular')] + transitions[('Popular', 'Non-Popular')]
+    career_end_popular = transitions[('Non-Popular', 'Popular')] + transitions[('Popular', 'Popular')]
+
+    nodes = [
+        f"Career Start:<br>Non-Popular Directors<br>({career_start_nonpopular} actors)",
+        f"Career Start:<br>Popular Directors<br>({career_start_popular} actors)",
+        f"Career End:<br>Non-Popular Directors<br>({career_end_nonpopular} actors)",
+        f"Career End:<br>Popular Directors<br>({career_end_popular} actors)"
+    ]
+
+    links = [
+        # Non-Popular → Non-Popular
+        (0, 2, transitions[('Non-Popular', 'Non-Popular')]),
+        # Non-Popular → Popular
+        (0, 3, transitions[('Non-Popular', 'Popular')]),
+        # Popular → Non-Popular
+        (1, 2, transitions[('Popular', 'Non-Popular')]),
+        # Popular → Popular
+        (1, 3, transitions[('Popular', 'Popular')])
+    ]
+
+    source_indices = [link[0] for link in links]
+    target_indices = [link[1] for link in links]
+    values = [link[2] for link in links]
+
+
+    colors = [
+        'rgba(200, 200, 200, 0.4)',  # Non-Popular → Non-Popular (gray)
+        'rgba(100, 200, 100, 0.6)',  # Non-Popular → Popular (green - upward)
+        'rgba(200, 100, 100, 0.6)',  # Popular → Non-Popular (red - downward)
+        'rgba(100, 100, 200, 0.6)'  # Popular → Popular (blue - stable)
+    ]
+
+    node_colors = [
+        'rgba(200, 200, 200, 0.8)',  # Career Start Non-Popular
+        'rgba(100, 150, 255, 0.8)',  # Career Start Popular
+        'rgba(200, 200, 200, 0.8)',  # Career End Non-Popular
+        'rgba(100, 150, 255, 0.8)'  # Career End Popular
+    ]
+
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=30,
+            thickness=30,
+            line=dict(color="black", width=1),
+            label=nodes,
+            color=node_colors,
+            x=[0.1, 0.1, 0.9, 0.9],  # Position nodes
+            y=[0.8, 0.2, 0.8, 0.2],  # Flipped: Popular at 0.2 (top), Non-Popular at 0.8 (bottom)
+        ),
+        link=dict(
+            source=source_indices,
+            target=target_indices,
+            value=values,
+            color=colors,
+            label=[f"{v} actors" for v in values]
+        )
+    )])
+
+    fig.update_layout(
+        title={
+            'text': f"Actor Career Transitions: Popular vs Non-Popular Directors<br>" +
+                    f"<sub>Based on {total_actors} actors with ≥{actor_min_films} films (first 3 vs last 3 films)</sub>",
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 18, 'color': 'black'}
+        },
+        font=dict(size=12),
+        margin=dict(b=100),
+        paper_bgcolor='white',
+        height=600,
+        width=1000
+    )
+
+    fig.show()
+
+    # A bit different config for actually saving the figure to svg, because of font sizes/colors
+    fig.update_layout(
+        title={
+            'text': f"Actor Career Transitions: Popular vs Non-Popular Directors<br>" +
+                    f"<sub>Based on {total_actors} actors with ≥{actor_min_films} films (first 3 vs last 3 films)</sub>",
+            'x': 0.5,
+            'xanchor': 'center',
+            'font': {'size': 24, 'color': 'black'}
+        },
+        font=dict(size=12, color='black', shadow='auto'),
+        font_shadow="rgba(0, 0, 0, 0)",
+        height=300,
+        width=500,
+        paper_bgcolor='white',  # Set background to white
+        plot_bgcolor='white',  # Set plot area to white
+        margin=dict(l=20, r=20, t=100, b=100),  # Add margins (left, right, top, bottom)
+    )
+    fig.write_image('actor_career_transitions_sankey.svg', width=1000, height=600)
+
+def actor_transitions_on_plotbar(transitions, total_actors, actor_min_films):
+    fig, ax = plt.subplots(1, 1, figsize=(10, 6))
+
+    transition_labels = ['Non-Pop → Non-Pop', 'Non-Pop → Popular', 'Popular → Non-Pop', 'Popular → Popular']
+    transition_counts = [
+        transitions[('Non-Popular', 'Non-Popular')],
+        transitions[('Non-Popular', 'Popular')],
+        transitions[('Popular', 'Non-Popular')],
+        transitions[('Popular', 'Popular')]
+    ]
+    transition_colors = ['gray', 'green', 'red', 'blue']
+
+    transition_percentages = [(count / total_actors * 100) for count in transition_counts]
+
+    bars = ax.bar(transition_labels, transition_counts, color=transition_colors, alpha=0.7, edgecolor='black',
+                  linewidth=2)
+    ax.set_ylabel('Number of Actors', fontsize=12)
+    ax.set_title('Actor Career Transitions', fontsize=14)
+    ax.grid(axis='y', alpha=0.3)
+
+    # Add value labels on bars (both count and percentage)
+    for bar, count, percentage in zip(bars, transition_counts, transition_percentages):
+        height = bar.get_height()
+        ax.text(bar.get_x() + bar.get_width() / 2., height,
+                f'{int(count)} - ({percentage:.1f}%)',
+                ha='center', va='bottom', fontsize=11)
+
+    # Rotate x labels for better readability
+    ax.tick_params(axis='x', rotation=0)
+
+    plt.tight_layout()
+    plt.savefig('actor_career_transitions_bars.png', dpi=300, bbox_inches='tight')
+    plt.show()
+
+    print("Saved: actor_career_transitions_bars.png")
+
+def testing_hypothesis(prestige_bins, P_pi_given_m, P_pi):
+    # Test hypothesis: Does reputation determine transition to high/low prestige directors?
+    print("HYPOTHESIS TEST: Reputation → Prestige Transition")
+    print("\nH1: Actors with LOW reputation (m≈0.1) have higher chance of moving to LOW-prestige directors")
+    print("H2: Actors with HIGH reputation (m≈0.9) have higher chance of staying at HIGH-prestige venues")
+
+    # Define low/high thresholds
+    low_prestige_threshold = 0.3  # Bottom 30%
+    high_prestige_threshold = 0.7  # Top 30%
+
+    # Analyze P[π|m] for low and high memory levels
+    m_low_bin = get_bin(0.1, prestige_bins)
+    m_high_bin = get_bin(0.9, prestige_bins)
+
+    P_pi_given_m_low = P_pi_given_m[m_low_bin, :]
+    P_pi_given_m_high = P_pi_given_m[m_high_bin, :]
+
+    # Calculate cumulative probabilities
+    bin_centers = (prestige_bins[:-1] + prestige_bins[1:]) / 2
+
+    # P[next director is low-prestige | m = low]
+    low_bins = bin_centers < low_prestige_threshold
+    P_low_prestige_given_m_low = np.sum(P_pi_given_m_low[low_bins])
+    P_low_prestige_given_m_high = np.sum(P_pi_given_m_high[low_bins])
+    P_low_prestige_marginal = np.sum(P_pi[low_bins])
+
+    # P[next director is high-prestige | m = high]
+    high_bins = bin_centers > high_prestige_threshold
+    P_high_prestige_given_m_high = np.sum(P_pi_given_m_high[high_bins])
+    P_high_prestige_given_m_low = np.sum(P_pi_given_m_low[high_bins])
+    P_high_prestige_marginal = np.sum(P_pi[high_bins])
+
+    print("Probability of transitioning to LOW-prestige directors (π < {:.1f})".format(low_prestige_threshold))
+    print(f"  P[low-popularity | m = 0.1 (low popularity)]  = {P_low_prestige_given_m_low:.4f}")
+    print(f"  P[low-popularity | m = 0.9 (high popularity)] = {P_low_prestige_given_m_high:.4f}")
+    print(f"  P[low-popularity] (marginal)                  = {P_low_prestige_marginal:.4f}")
+    print(f"\n  Ratio: Low-popularity actors are {P_low_prestige_given_m_low / P_low_prestige_given_m_high:.2f}x more likely")
+    print(f"         to move to low-popularity directors than high-popularity actors")
+
+    if P_low_prestige_given_m_low > P_low_prestige_given_m_high:
+        print("H1 is true: Low-popularity actors more likely to work with low-popularity directors")
+    else:
+        print("H1 is false")
+
+    print("Probability of transitioning to HIGH-popularity directors (π > {:.1f})".format(high_prestige_threshold))
+    print(f"  P[high-popularity | m = 0.9 (high popularity)] = {P_high_prestige_given_m_high:.4f}")
+    print(f"  P[high-popularity | m = 0.1 (low popularity)]  = {P_high_prestige_given_m_low:.4f}")
+    print(f"  P[high-popularity] (marginal)                  = {P_high_prestige_marginal:.4f}")
+    print(
+        f"\n  Ratio: High-popularity actors are {P_high_prestige_given_m_high / P_high_prestige_given_m_low:.2f}x more likely")
+    print(f"         to work with high-popularity directors than low-popularity actors")
+
+    if P_high_prestige_given_m_high > P_high_prestige_given_m_low:
+        print("H2 is true: High-popularity actors more likely to stay at high-popularity venues")
+    else:
+        print("H2 is false")
+
+    # Visualize with heatmap
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
-    # Plot 1: Box plot comparison
+    # Plot 1: P[π|m] heatmap
     ax1 = axes[0]
-    data_to_plot = [popularity_without_popular, popularity_with_popular]
-    bp = ax1.boxplot(data_to_plot, labels=['Never worked with\npopular directors', 'Worked with\npopular directors'],
-                     patch_artist=True)
-    bp['boxes'][0].set_facecolor('lightcoral')
-    bp['boxes'][1].set_facecolor('lightgreen')
+    im = ax1.imshow(P_pi_given_m, aspect='auto', origin='lower', cmap='YlOrRd',
+                    extent=[0, 1, 0, 1])
+    ax1.set_xlabel('Next Director Prestige π', fontsize=12)
+    ax1.set_ylabel('Actor Memory m_τ', fontsize=12)
+    ax1.set_title('P[π | m_τ]: Transition Probability by popularity', fontsize=12)
+    plt.colorbar(im, ax=ax1, label='P[π | m]')
 
-    ax1.set_ylabel('Actor Popularity Score', fontsize=12)
-    ax1.set_title('Actor Popularity Distribution', fontsize=14, fontweight='bold')
-    ax1.grid(axis='y', alpha=0.3)
+    # Add diagonal line (perfect matching)
+    ax1.plot([0, 1], [0, 1], 'w--', linewidth=2, label='π = m (perfect match)')
+    ax1.legend(loc='upper left')
 
-    # Add mean markers
-    means = [np.mean(popularity_without_popular), np.mean(popularity_with_popular)]
-    ax1.plot([1, 2], means, 'D', color='red', markersize=8, label='Mean', zorder=3)
-    ax1.legend()
-
-    # Plot 2: Histogram comparison
+    # Plot 2: Bar chart comparing probabilities
     ax2 = axes[1]
-    bins = np.linspace(0, max(max(popularity_with_popular), max(popularity_without_popular)), 30)
-    ax2.hist(popularity_without_popular, bins=bins, alpha=0.5, label='Never worked with popular directors',
-             color='coral', edgecolor='black')
-    ax2.hist(popularity_with_popular, bins=bins, alpha=0.5, label='Worked with popular directors',
-             color='green', edgecolor='black')
+    x = np.arange(4)
+    width = 0.35
 
-    ax2.axvline(np.mean(popularity_without_popular), color='red', linestyle='--', linewidth=2,
-                label=f'Mean (no popular): {np.mean(popularity_without_popular):.1f}')
-    ax2.axvline(np.mean(popularity_with_popular), color='darkgreen', linestyle='--', linewidth=2,
-                label=f'Mean (with popular): {np.mean(popularity_with_popular):.1f}')
+    probs_low_rep = [P_low_prestige_given_m_low, P_high_prestige_given_m_low]
+    probs_high_rep = [P_low_prestige_given_m_high, P_high_prestige_given_m_high]
 
-    ax2.set_xlabel('Actor Popularity Score', fontsize=12)
-    ax2.set_ylabel('Number of Actors', fontsize=12)
-    ax2.set_title('Actor Popularity Distribution (Histogram)', fontsize=14, fontweight='bold')
+    bars1 = ax2.bar(x[:2] - width / 2, probs_low_rep, width, label='Low popularity (m=0.1)', color='coral')
+    bars2 = ax2.bar(x[:2] + width / 2, probs_high_rep, width, label='High popularity (m=0.9)', color='steelblue')
+
+    ax2.set_ylabel('Probability', fontsize=12)
+    ax2.set_title('Transition Probabilities by popularity Level', fontsize=12)
+    ax2.set_xticks(x[:2])
+    ax2.set_xticklabels(['To Low-popularity\n(π < 0.3)', 'To High-popularity\n(π > 0.7)'])
     ax2.legend()
     ax2.grid(axis='y', alpha=0.3)
 
+    # Add value labels
+    for bar in bars1:
+        height = bar.get_height()
+        ax2.text(bar.get_x() + bar.get_width() / 2., height, f'{height:.3f}',
+                 ha='center', va='bottom', fontsize=10)
+    for bar in bars2:
+        height = bar.get_height()
+        ax2.text(bar.get_x() + bar.get_width() / 2., height, f'{height:.3f}',
+                 ha='center', va='bottom', fontsize=10)
+
     plt.tight_layout()
-    plt.savefig('actor_quality_popular_directors.png', dpi=300, bbox_inches='tight')
+    plt.savefig('reputation_popularity_analysis.png', dpi=300, bbox_inches='tight')
     plt.show()
-
-
