@@ -11,6 +11,8 @@ interface ControlPanelProps {
   onColorModeChange: (value: ColorMode) => void
   separateByType: boolean
   onSeparateByTypeChange: (value: boolean) => void
+  separateByCluster: boolean
+  onSeparateByClusterChange: (value: boolean) => void
   nodeCount: number
   linkCount: number
 }
@@ -25,6 +27,8 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
   onColorModeChange,
   separateByType,
   onSeparateByTypeChange,
+  separateByCluster,
+  onSeparateByClusterChange,
   nodeCount,
   linkCount
 }) => {
@@ -87,6 +91,7 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
         >
           <option value="degree">Degree (Viridis)</option>
           <option value="type">Type (Actor/Director)</option>
+          <option value="cluster">Cluster (Louvain)</option>
         </select>
       </div>
 
@@ -99,6 +104,18 @@ export const ControlPanel: React.FC<ControlPanelProps> = ({
             style={{ marginRight: 8 }}
           />
           Separate Actors/Directors
+        </label>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
+        <label style={{ display: 'flex', alignItems: 'center', fontSize: 12, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={separateByCluster}
+            onChange={(e) => onSeparateByClusterChange(e.target.checked)}
+            style={{ marginRight: 8 }}
+          />
+          Separate by Cluster
         </label>
       </div>
 

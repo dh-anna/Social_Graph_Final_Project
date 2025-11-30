@@ -4,9 +4,10 @@ export interface Node {
   degree?: number
   color?: string
   type?: 'actor' | 'director'
+  cluster?: number
 }
 
-export type ColorMode = 'degree' | 'type'
+export type ColorMode = 'degree' | 'type' | 'cluster'
 
 export interface GraphSettings {
   separateByType: boolean

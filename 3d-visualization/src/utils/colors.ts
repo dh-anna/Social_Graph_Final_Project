@@ -1,3 +1,10 @@
+// Generate distinct colors for clusters using golden angle distribution
+export function getClusterColor(clusterId: number): string {
+  if (clusterId < 0) return '#999999' // Unknown cluster
+  const hue = (clusterId * 137.508) % 360 // Golden angle for good distribution
+  return `hsl(${hue}, 70%, 50%)`
+}
+
 // Viridis-like color scale
 export function getViridisColor(t: number): string {
   // t should be between 0 and 1

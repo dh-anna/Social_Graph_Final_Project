@@ -12,6 +12,7 @@ function App() {
   const [showLinkLabels, setShowLinkLabels] = useState(false)
   const [colorMode, setColorMode] = useState<ColorMode>('degree')
   const [separateByType, setSeparateByType] = useState(false)
+  const [separateByCluster, setSeparateByCluster] = useState(false)
   const dimensions = useWindowSize()
 
   const { graphData, maxDegree, isLoading, error } = useGraphData(
@@ -36,6 +37,8 @@ function App() {
         onColorModeChange={setColorMode}
         separateByType={separateByType}
         onSeparateByTypeChange={setSeparateByType}
+        separateByCluster={separateByCluster}
+        onSeparateByClusterChange={setSeparateByCluster}
         nodeCount={filteredData.nodes.length}
         linkCount={filteredData.links.length}
       />
@@ -48,6 +51,7 @@ function App() {
         showLinkLabels={showLinkLabels}
         colorMode={colorMode}
         separateByType={separateByType}
+        separateByCluster={separateByCluster}
       />
     </div>
   )
