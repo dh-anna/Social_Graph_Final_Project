@@ -64,7 +64,7 @@ def visualize_director_director_graph_filtered(director_graph, top_n=100):
               fontsize=16, fontweight='bold')
     plt.axis('off')
     plt.tight_layout()
-    plt.savefig('director_director_graph_figures/director_transition_graph.png', dpi=300, bbox_inches='tight')
+    plt.savefig('director_transition_graph.png', dpi=300, bbox_inches='tight')
     plt.show()
 
     print(f"\nGraph saved as 'director_transition_graph.png'")
