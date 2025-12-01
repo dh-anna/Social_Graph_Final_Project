@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { ControlPanel } from './components/ControlPanel'
 import { GraphViewer } from './components/GraphViewer'
+dimport { LegendPanel } from './components/LegendPanel'
 import { useGraphData } from './hooks/useGraphData'
 import { useWindowSize } from './hooks/useWindowSize'
 import { useFilteredGraph } from './hooks/useFilteredGraph'
+import { useClusterNames } from './hooks/useClusterNames'
 import { type ColorMode } from './types'
 import './App.css'
 
@@ -17,6 +19,9 @@ function App() {
 
   const { graphData, maxDegree, isLoading, error } = useGraphData(
     import.meta.env.BASE_URL + 'graph.json.gz'
+  )
+  const { clusterNames } = useClusterNames(
+    import.meta.env.BASE_URL + 'cluster_names.json'
   )
 
   const filteredData = useFilteredGraph(graphData, minDegree)
@@ -41,6 +46,12 @@ function App() {
         onSeparateByClusterChange={setSeparateByCluster}
         nodeCount={filteredData.nodes.length}
         linkCount={filteredData.links.length}
+      />
+
+      <LegendPanel
+        colorMode={colorMode}
+        clusterNames={clusterNames}
+        maxDegree={maxDegree}
       />
 
       <GraphViewer
