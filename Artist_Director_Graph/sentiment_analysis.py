@@ -21,17 +21,6 @@ sentiment_pipeline = pipeline("sentiment-analysis")  # -1 for CPU, 0 for GPU
 
 
 def calculate_sentiment(texts, batch_size=32):
-    """
-    Calculate sentiment analysis for a large array of texts using batching.
-
-    Args:
-        texts: List of text strings to analyze
-        batch_size: Number of texts to process in each batch (default: 32)
-
-    Returns:
-        List of dictionaries containing sentiment results for each text.
-        Each dict has 'label' (POSITIVE/NEGATIVE) and 'score' (confidence).
-    """
     if not texts:
         return []
 

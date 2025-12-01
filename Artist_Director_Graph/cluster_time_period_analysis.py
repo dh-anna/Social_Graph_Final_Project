@@ -138,9 +138,7 @@ def print_time_period_summary(df_stats, df_era, top_n=15):
 
 
 def find_era_specialized_clusters(df_era, threshold=60):
-    print("\n" + "=" * 80)
     print(f"Clusters specialized in specific eras(>{threshold}% in one era)")
-    print("=" * 80)
 
     specialized = []
 
