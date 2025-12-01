@@ -9,19 +9,19 @@ import plotly.io as pio
 from typing import Dict, List, Set, Tuple
 
 
-def cut_off_actors_whose_first_movie_was_before_1980(actors_set:Set, df_actors:pd.DataFrame)->Set:
-    actors_after_1980 = set()
-    for actor in actors_set:
+def cut_off_actors_whose_first_movie_was_before_1980(actors_set:Set, df_actors:pd.DataFrame)->List[str]:
+    actors_after_1980 = []
+    for actor in sorted(actors_set):
         actor_films = df_actors[df_actors['Actor'] == actor]
         first_film_year = actor_films['Year'].min()
         if first_film_year >= 1980:
-            actors_after_1980.add(actor)
+            actors_after_1980.append(actor)
     return actors_after_1980
 
 def making_director_actor_graph(actors_after_1980:Set, actors_grouped, movie_directors_dict:Dict, name_lookup:Dict)->nx.DiGraph:
     actors_director_graph = nx.DiGraph()
     actors_director_graph.add_nodes_from(actors_after_1980)
-    for actor, actor_movies in actors_grouped:
+    for actor, actor_movies in sorted(actors_grouped, key=lambda x: x[0]):
         # Sort once per actor, not in the initial filter
         actor_movies = actor_movies.sort_values('Year')
 
@@ -34,12 +34,12 @@ def making_director_actor_graph(actors_after_1980:Set, actors_grouped, movie_dir
             directors_str = movie_directors_dict.get(movie_id)
             if directors_str:
                 director_ids = directors_str.split(',')
-                for director_id in director_ids:
+                for director_id in sorted(director_ids):  # Sort director IDs for deterministic order
                     director_name = name_lookup.get(director_id)
                     if director_name:
                         director_counts[director_name] = director_counts.get(director_name, 0) + 1
 
-        for director_name, weight in director_counts.items():
+        for director_name, weight in sorted(director_counts.items()):
             if director_name not in actors_director_graph:
                 actors_director_graph.add_node(director_name)
             actors_director_graph.add_edge(actor, director_name, weight=weight)
@@ -291,7 +291,7 @@ def visualize_actor_director_graph_500_nodes(actors_director_graph:nx.DiGraph):
     subgraph = actors_director_graph.subgraph(top_nodes)
 
     # Calculate layout (this may take a minute)
-    pos = nx.spring_layout(subgraph, k=1, iterations=50)
+    pos = nx.spring_layout(subgraph, k=1, iterations=50, seed=42)
 
     # Create edge traces
     edge_traces = []
@@ -382,7 +382,14 @@ def show_clusters_centrality_vs_popularity_table(degree_centrality_list1, popula
 
 def make_louvain_communities(filtered_graph:nx.DiGraph, actors_director_graph:nx.DiGraph)->Tuple[np.ndarray, List[str], np.ndarray]:
     # Convert to undirected graph for Louvain (Louvain works on undirected graphs)
-    undirected_graph = filtered_graph.to_undirected().copy()
+    original_undirected = filtered_graph.to_undirected()
+
+    # Rebuild graph with sorted nodes for deterministic Louvain results
+    # (Louvain processes nodes in graph order, so order matters even with seed)
+    sorted_nodes = sorted(original_undirected.nodes())
+    undirected_graph = nx.Graph()
+    undirected_graph.add_nodes_from(sorted_nodes)
+    undirected_graph.add_edges_from(original_undirected.edges(data=True))
 
     # Apply Louvain community detection
     communities = nx.community.louvain_communities(undirected_graph, seed=42)
@@ -391,7 +398,7 @@ def make_louvain_communities(filtered_graph:nx.DiGraph, actors_director_graph:nx
     partition = calculate_partition(communities)
 
     # Extract cluster labels
-    nodes = list(filtered_graph.nodes())
+    nodes = sorted(filtered_graph.nodes())
     cluster_labels = np.array([partition[node] for node in nodes])
     n_clusters = len(communities)
 
@@ -401,7 +408,11 @@ def make_louvain_communities(filtered_graph:nx.DiGraph, actors_director_graph:nx
     mod = modularity(undirected_graph, communities)
     print(f"The modularity: {mod:.4f}")
 
-    embeddings = visualize_louvain_communities(filtered_graph, nodes, cluster_labels)
+    adj_matrix = nx.adjacency_matrix(filtered_graph, nodelist=nodes)
+
+    # Use TSNE for dimensionality reduction (for easier visualization)
+    tsne = TSNE(n_components=2, random_state=42, perplexity=30)
+    embeddings = tsne.fit_transform(adj_matrix.toarray())
 
     # Show statistics
     print(f"Number of communities detected: {n_clusters}")
