@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ControlPanel } from './components/ControlPanel'
 import { GraphViewer } from './components/GraphViewer'
-dimport { LegendPanel } from './components/LegendPanel'
+import { LegendPanel } from './components/LegendPanel'
 import { useGraphData } from './hooks/useGraphData'
 import { useWindowSize } from './hooks/useWindowSize'
 import { useFilteredGraph } from './hooks/useFilteredGraph'
