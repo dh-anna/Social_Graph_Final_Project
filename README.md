@@ -22,7 +22,7 @@ This network connects directors based on how actors moved between them.
 ## Key Findings
 
 ### Actor-Director Graph Analysis
-This work is in the Artist_Director_Graph folder. The Artist_Director_Graph.ipynb is the main jupyter notebook, the helper functions are located in actor_director_analysis.py and actor_director_functions.py.
+This work is in the Artist_Director_Graph folder. The Artist_Director_Graph.ipynb is the main jupyter notebook, the helper functions are located in that folder as well.
 - Community detection revealed distinct clusters of actors and directors with specialized characteristics (genres, production companies, time periods)
 - Nodes with highest degree centrality are established directors
 - Different clusters does not show specialization in specific genres, production companies, and film eras
