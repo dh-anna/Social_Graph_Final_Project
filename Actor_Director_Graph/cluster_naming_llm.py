@@ -1,4 +1,3 @@
-import anthropic
 import numpy as np
 import json
 import os
@@ -43,6 +42,8 @@ def generate_name_for_clusters(
         if cached is not None:
             print(f"Loaded {len(cached)} cluster names from cache: {cache_path}")
             return cached
+
+    import anthropic
 
     # Group nodes by cluster
     clusters = defaultdict(list)

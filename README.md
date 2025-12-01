@@ -22,7 +22,7 @@ This network connects directors based on how actors moved between them.
 ## Key Findings
 
 ### Actor-Director Graph Analysis
-This work is in the Artist_Director_Graph folder. The Artist_Director_Graph.ipynb is the main jupyter notebook, the helper functions are located in that folder as well.
+This work is in the Actor_Director_Graph folder. The Actor_Director_Graph.ipynb is the main jupyter notebook, the helper functions are located in that folder as well.
 - Community detection revealed distinct clusters of actors and directors with specialized characteristics (genres, production companies, time periods)
 - Nodes with highest degree centrality are established directors
 - Different clusters does not show specialization in specific genres, production companies, and film eras
@@ -36,7 +36,7 @@ This work is in the Director_Director_Graph folder. The Director_Director_Graph.
   - High-popularity actors are significantly more likely to continue working with high-popularity directors, but low popularity actors can work with high popularity directors too, we could not identify a lock-in-effect
 
 ### Conclusion:
-- In the artist–director graph, we identified 30 communities, but we found no correlation between the community structure and any observable features such as genre, time range, production company, or the sentiment of the movies. This may be due to unobserved factors, such as the packaging phenomena from talent agencies, for which no data were available.
+- In the actor–director graph, we identified 30 communities, but we found no correlation between the community structure and any observable features such as genre, time range, production company, or the sentiment of the movies. This may be due to unobserved factors, such as the packaging phenomena from talent agencies, for which no data were available.
 
 - We also found no correlation between actors’ popularity and the sentiment of the movies in which they appeared.
 
