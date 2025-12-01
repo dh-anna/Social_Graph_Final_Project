@@ -784,12 +784,14 @@ def get_actors_to_popular_directors(actor_directors_dict, popular_directors):
 
 
 
-def get_career_classification(directors_list, popular_directors, n_films=3):
+def get_career_classification(directors_list, popular_directors, pct=0.30):
     if len(directors_list) == 0:
         return None, None
 
-    first_films = directors_list[:min(n_films, len(directors_list))]
-    last_films = directors_list[-min(n_films, len(directors_list)):]
+    n_films = max(1, int(len(directors_list) * pct))
+
+    first_films = directors_list[:n_films]
+    last_films = directors_list[-n_films:]
 
     # Count popular directors in first and last films
     first_popular = sum(1 for d in first_films if d['director'] in popular_directors)
@@ -805,7 +807,7 @@ def get_career_classification(directors_list, popular_directors, n_films=3):
 def calculate_actor_transitions(actor_directors_dict, popular_directors, transitions, actor_min_films):
     for actor, directors_list in actor_directors_dict.items():
         if len(directors_list) >= actor_min_films:
-            start_class, end_class = get_career_classification(directors_list, popular_directors, n_films=3)
+            start_class, end_class = get_career_classification(directors_list, popular_directors, pct=0.3)
 
             if start_class and end_class:
                 transitions[(start_class, end_class)] += 1
@@ -888,7 +890,7 @@ def visualize_actor_transitions(transitions, total_actors, actor_min_films):
     fig.update_layout(
         title={
             'text': f"Actor Career Transitions: Popular vs Non-Popular Directors<br>" +
-                    f"<sub>Based on {total_actors} actors with ≥{actor_min_films} films (first 3 vs last 3 films)</sub>",
+                    f"<sub>Based on {total_actors} actors with ≥{actor_min_films} films (first 30\% vs last 30\% of their films)</sub>",
             'x': 0.5,
             'xanchor': 'center',
             'font': {'size': 18, 'color': 'black'}
@@ -906,7 +908,7 @@ def visualize_actor_transitions(transitions, total_actors, actor_min_films):
     fig.update_layout(
         title={
             'text': f"Actor Career Transitions: Popular vs Non-Popular Directors<br>" +
-                    f"<sub>Based on {total_actors} actors with ≥{actor_min_films} films (first 3 vs last 3 films)</sub>",
+                    f"<sub>Based on {total_actors} actors with ≥{actor_min_films} films (first 30\% vs last 30\% of their films)</sub>",
             'x': 0.5,
             'xanchor': 'center',
             'font': {'size': 24, 'color': 'black'}
