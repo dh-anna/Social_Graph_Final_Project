@@ -9,3 +9,4 @@ Datasets/IMDB
 /analyze_cluster_time_periods.py
 /CLUSTER_TIME_PERIOD_ANALYSIS.md
 /run_time_period_analysis.py
+.env
