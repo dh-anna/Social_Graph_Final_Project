@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { ControlPanel } from './components/ControlPanel'
 import { GraphViewer } from './components/GraphViewer'
 import { LegendPanel } from './components/LegendPanel'
@@ -15,6 +15,7 @@ function App() {
   const [colorMode, setColorMode] = useState<ColorMode>('degree')
   const [separateByType, setSeparateByType] = useState(false)
   const [separateByCluster, setSeparateByCluster] = useState(false)
+  const [enabledClusters, setEnabledClusters] = useState<Set<number>>(new Set())
   const dimensions = useWindowSize()
 
   const { graphData, maxDegree, isLoading, error } = useGraphData(
@@ -24,7 +25,37 @@ function App() {
     import.meta.env.BASE_URL + 'cluster_names.json'
   )
 
-  const filteredData = useFilteredGraph(graphData, minDegree)
+  const clustersInitialized = useRef(false)
+
+  useEffect(() => {
+    const clusterIds = Object.keys(clusterNames)
+    if (clusterIds.length > 0 && !clustersInitialized.current) {
+      clustersInitialized.current = true
+      setEnabledClusters(new Set(clusterIds.map(Number)))
+    }
+  }, [clusterNames])
+
+  const handleClusterToggle = useCallback((clusterId: number) => {
+    setEnabledClusters(prev => {
+      const next = new Set(prev)
+      if (next.has(clusterId)) {
+        next.delete(clusterId)
+      } else {
+        next.add(clusterId)
+      }
+      return next
+    })
+  }, [])
+
+  const handleSelectAllClusters = useCallback(() => {
+    setEnabledClusters(new Set(Object.keys(clusterNames).map(Number)))
+  }, [clusterNames])
+
+  const handleDeselectAllClusters = useCallback(() => {
+    setEnabledClusters(new Set())
+  }, [])
+
+  const filteredData = useFilteredGraph(graphData, minDegree, enabledClusters)
 
   if (isLoading) return <div>Loading...</div>
   if (error) return <div>Error: {error}</div>
@@ -52,6 +83,10 @@ function App() {
         colorMode={colorMode}
         clusterNames={clusterNames}
         maxDegree={maxDegree}
+        enabledClusters={enabledClusters}
+        onClusterToggle={handleClusterToggle}
+        onSelectAll={handleSelectAllClusters}
+        onDeselectAll={handleDeselectAllClusters}
       />
 
       <GraphViewer

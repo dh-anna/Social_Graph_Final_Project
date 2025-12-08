@@ -1,12 +1,20 @@
 import { useMemo } from 'react'
 import { type GraphData } from '../types'
 
-export function useFilteredGraph(graphData: GraphData | null, minDegree: number): GraphData | null {
+export function useFilteredGraph(
+  graphData: GraphData | null,
+  minDegree: number,
+  enabledClusters: Set<number>
+): GraphData | null {
   return useMemo(() => {
     if (!graphData) return null
 
     const filteredNodes = graphData.nodes
-      .filter(node => (node.degree || 0) >= minDegree)
+      .filter(node => {
+        const meetsDegreeCriteria = (node.degree || 0) >= minDegree
+        const meetsClusterCriteria = node.cluster !== undefined && enabledClusters.has(node.cluster)
+        return meetsDegreeCriteria && meetsClusterCriteria
+      })
       .map(node => ({ ...node })) // Create fresh copies
 
     const nodeIds = new Set(filteredNodes.map(n => n.id))
@@ -26,5 +34,5 @@ export function useFilteredGraph(graphData: GraphData | null, minDegree: number)
       }))
 
     return { nodes: filteredNodes, links: filteredLinks }
-  }, [graphData, minDegree])
+  }, [graphData, minDegree, enabledClusters])
 }
